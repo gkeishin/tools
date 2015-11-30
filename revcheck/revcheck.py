@@ -7,17 +7,16 @@ import os.path
 
 uriprepend = 'https://api.github.com/repos/'
 
-BB = '/home/causten/openbmc-barreleye/meta-phosphor/common/recipes-phosphor/'
+BB = '/home/causten/openbmc-barreleye/meta-phosphor/common/'
 FNAMES = [
-	'obmc-phosphor-event/obmc-phosphor-event.bb',
-	'skeleton/skeleton.bb',
-	'host-ipmid/host-ipmid.bb',
-	'host-ipmid/host-ipmid-oem.bb',
-	'host-ipmid/host-ipmi-bt.bb',
-	'host-ipmid/btbridged.bb',
-	'host-ipmid/host-ipmid-tool.bb',
-	'host-ipmid/host-ipmi-hw-example.bb',
-	'host-ipmid/host-ipmid-fru.bb',
+	#'recipes-kernel/linux/linux-obmc_4.3.bb',
+	'recipes-phosphor/obmc-phosphor-event/obmc-phosphor-event.bb',
+	'recipes-phosphor/skeleton/skeleton.bb',
+	'recipes-phosphor/host-ipmid/host-ipmid.bb',
+	'recipes-phosphor/host-ipmid/host-ipmid-oem.bb',
+	'recipes-phosphor/host-ipmid/btbridged.bb',
+	'recipes-phosphor/host-ipmid/host-ipmid-tool.bb',
+	'recipes-phosphor/host-ipmid/host-ipmid-fru.bb',
 	]
 
 
@@ -29,15 +28,16 @@ def isgithub(uri) :
 ##################################################################################
 # Works like the curl command
 # curl -k https://api.github.com/repos/openbmc/phosphor-host-ipmid/branches/master
+# curl -k https://api.github.com/repos/openbmc/linux/branches/dev-4.3
 ##################################################################################
-def githubversion(url):
+def githubversion(url, branch):
 
-	return 'bebdb23ea092df6cde23e6da2a8940bd84de4810'
-	#githuburi = url.replace('git://github.com/', uriprepend) + '/branches/master'
-	#r = requests.get(githuburi)
-	#j = r.json()
-	#v = j['commit']['sha']
-	#return v
+	#return 'bebdb23ea092df6cde23e6da2a8940bd84de4810'
+	githuburi = url.replace('git://github.com/', uriprepend) + '/branches/' + branch
+	r = requests.get(githuburi)
+	j = r.json()
+	v = j['commit']['sha']
+	return v
 
 
 ##################################################################################
@@ -45,22 +45,49 @@ def githubversion(url):
 # Returns 2 item list.  srcrev and srcurl
 #
 # Note: ${AUTOREV} is a valid return
+# Note: TODO : handle linux tag/release
 ##################################################################################
 def extractrevandurl(filename):
-
+	
+	branch = 'master'
+	
 	with open(filename, 'r') as f:
-	    data = f.readlines()
+		data = f.readlines()
 	
-	    for line in data:
-	        if line.find('SRCREV') >= 0:
-	        	srcrev = line.split('=')[1].strip()
-	        	srcrev = srcrev.replace('"','')
+		for line in data:
+			if line.find('SRCREV') >= 0:
+				srcrev = line.split('=')[1].strip()
+				srcrev = srcrev.replace('"','')
 	
-	        if line.find('SRC_URI') >= 0:
-	        	srcurl =  line.split('=')[1].strip()
-	        	srcurl = srcurl.replace('"','')
+			if line.find('SRC_URI') >= 0:
+				x = line.find('"')
+				y = line.rfind('"')
 
-	return [srcrev, srcurl]
+				completeuri = line[x+1:y]
+				urigroups   = completeuri.split(';')
+
+				for b in urigroups:
+					if 'git://github.com' in b:
+						srcurl = b
+					if 'branch' in b:
+						branch = b.split('=')[1]
+
+
+	if '${' in branch:
+		x = branch.find('{')
+		y = branch.find('}')
+
+		branchvar = branch[x+1:y]
+
+		print "Variable found for branch : " + branchvar
+
+		for line in data:
+			if branchvar in line:
+				var = line.split('=')[1]
+				print "Found branch name " + var
+				break
+	
+	return [srcrev, srcurl, branch]
 
 
 def isuptodate(localrev, githubrev):
@@ -81,14 +108,14 @@ def main():
 			print "ERROR: Not a file " + f
 			continue
 
-		srcrev , srcurl = extractrevandurl(fn)
+		srcrev , srcurl, branch = extractrevandurl(fn)
 
 		if srcurl == '' :
 			print 'ERROR: no plugin for ' + sys.argv[1]
 			continue
 		
 		if isgithub(srcurl) >= 0: 
-			masterversion = githubversion(srcurl)
+			masterversion = githubversion(srcurl, branch)
 		
 			if isuptodate(srcrev, masterversion):
 				print 'Up to date : ' + f
@@ -100,7 +127,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+	main()
 
 
 
