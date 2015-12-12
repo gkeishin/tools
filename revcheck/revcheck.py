@@ -4,6 +4,7 @@ import sys
 import json
 import requests
 import os.path
+import getpass
 
 uriprepend = 'https://api.github.com/repos/'
 
@@ -17,8 +18,9 @@ FNAMES = [
 	'recipes-phosphor/host-ipmid/btbridged.bb',
 	'recipes-phosphor/host-ipmid/host-ipmid-tool.bb',
 	'recipes-phosphor/host-ipmid/host-ipmid-fru.bb',
+	'recipes-phosphor/dbus/obmc-mapper.bb',
+	'recipes-phosphor/dbus/obmc-rest.bb',
 	]
-
 
 
 def isgithub(uri) :
@@ -30,11 +32,11 @@ def isgithub(uri) :
 # curl -k https://api.github.com/repos/openbmc/phosphor-host-ipmid/branches/master
 # curl -k https://api.github.com/repos/openbmc/linux/branches/dev-4.3
 ##################################################################################
-def githubversion(url, branch):
+def githubversion(url, branch, usr, pw):
 
 	#return 'bebdb23ea092df6cde23e6da2a8940bd84de4810'
 	githuburi = url.replace('git://github.com/', uriprepend) + '/branches/' + branch
-	r = requests.get(githuburi)
+	r = requests.get(githuburi, auth=(usr,pw))
 	j = r.json()
 	v = j['commit']['sha']
 	return v
@@ -46,7 +48,42 @@ def githubversion(url, branch):
 #
 # Note: ${AUTOREV} is a valid return
 # Note: TODO : handle linux tag/release
+# Note TODO: Handle line continuations...
+#
+#	SRC_URI += " \
+#        git://github.com/openbmc/phosphor-rest-server \
+#        "
 ##################################################################################
+def extractrevandurlv2(filename):
+	branch = 'master'
+	srcrev = ''
+	srcurl = ''
+	with open(filename, 'r') as f:
+		data = f.readlines()
+
+		for line in data:
+			if line.find('SRCREV') >= 0:
+				srcrev = line.split('=')[1].strip()
+				srcrev = srcrev.replace('"','')
+	
+			if line.find('SRC_URI') >= 0:
+				x = line.find('"')
+				y = line.rfind('"')
+
+
+
+		x = data.find('SRCREV')
+		s = data[x+5:]
+		x = s.find('"')
+		s = s[x+1:]
+		print s
+
+
+	
+	return [srcrev, srcurl, branch]
+
+
+
 def extractrevandurl(filename):
 	
 	branch = 'master'
@@ -101,6 +138,10 @@ def isuptodate(localrev, githubrev):
 
 def main():
 
+	usr = getpass.getuser()
+	pwd = getpass.getpass("enter github password for user %s: " % usr)
+
+
 	for f in FNAMES:
 
 		fn = BB+f
@@ -115,12 +156,12 @@ def main():
 			continue
 		
 		if isgithub(srcurl) >= 0: 
-			masterversion = githubversion(srcurl, branch)
+			masterversion = githubversion(srcurl, branch, usr, pwd)
 		
 			if isuptodate(srcrev, masterversion):
 				print 'Up to date : ' + f
 			else:
-				print 'OUT OF DATE: ' + f
+				print 'OUT OF DATE: ' + BB+ f
 		
 
 
