@@ -10,7 +10,7 @@ uriprepend = 'https://api.github.com/repos/'
 
 BB = '/home/causten/openbmc-barreleye/meta-phosphor/common/'
 FNAMES = [
-	#'recipes-kernel/linux/linux-obmc_4.3.bb',
+	#'recipes-kernel/linux/linux-obmc_4.4.bb',
 	'recipes-phosphor/obmc-phosphor-event/obmc-phosphor-event.bb',
 	'recipes-phosphor/skeleton/skeleton.bb',
 	'recipes-phosphor/host-ipmid/host-ipmid.bb',
@@ -20,6 +20,24 @@ FNAMES = [
 	'recipes-phosphor/host-ipmid/host-ipmid-fru.bb',
 	'recipes-phosphor/dbus/obmc-mapper.bb',
 	'recipes-phosphor/dbus/obmc-rest.bb',
+	'recipes-phosphor/rest-dbus/rest-dbus.bb',
+	'recipes-phosphor/settings/settings.bb',
+	'recipes-phosphor/obmc-phosphor-user/obmc-phosphor-user.bb',
+	'recipes-phosphor/inarp/inarp.bb',
+	'recipes-phosphor/network/network.bb',
+	'recipes-phosphor/obmc-phosphor-fan/obmc-phosphor-fand.bb',
+	'recipes-phosphor/skeleton/pyphosphor.bb',
+	'recipes-phosphor/obmc-console/obmc-console.bb',
+	'recipes-phosphor/obmc-phosphor-initfs/obmc-phosphor-init.bb',
+	'recipes-phosphor/host-ipmid/host-ipmi-bt.bb',
+	'recipes-phosphor/host-ipmid/host-ipmi-hw-example.bb',
+	'recipes-phosphor/packagegroups/packagegroup-obmc-phosphor-apps.bb',
+	'recipes-phosphor/obmc-phosphor-chassis/obmc-phosphor-chassisd.bb',
+	'recipes-phosphor/obmc-phosphor-flash/obmc-phosphor-flashd.bb',
+	'recipes-phosphor/obmc-phosphor-policy/obmc-phosphor-policyd.bb',
+	'recipes-phosphor/obmc-phosphor-example-sdbus/obmc-phosphor-example-sdbus.bb',
+	'recipes-phosphor/images/obmc-phosphor-image.bb',
+	'recipes-phosphor/images/obmc-phosphor-image-no-sysmgr.bb',
 	]
 
 
@@ -36,6 +54,8 @@ def githubversion(url, branch, usr, pw):
 
 	#return 'bebdb23ea092df6cde23e6da2a8940bd84de4810'
 	githuburi = url.replace('git://github.com/', uriprepend) + '/branches/' + branch
+
+	#print 'githuburi:' + githuburi
 	r = requests.get(githuburi, auth=(usr,pw))
 	j = r.json()
 	v = j['commit']['sha']
@@ -48,50 +68,38 @@ def githubversion(url, branch, usr, pw):
 #
 # Note: ${AUTOREV} is a valid return
 # Note: TODO : handle linux tag/release
-# Note TODO: Handle line continuations...
-#
-#	SRC_URI += " \
-#        git://github.com/openbmc/phosphor-rest-server \
-#        "
 ##################################################################################
-def extractrevandurlv2(filename):
-	branch = 'master'
-	srcrev = ''
-	srcurl = ''
-	with open(filename, 'r') as f:
-		data = f.readlines()
-
-		for line in data:
-			if line.find('SRCREV') >= 0:
-				srcrev = line.split('=')[1].strip()
-				srcrev = srcrev.replace('"','')
-	
-			if line.find('SRC_URI') >= 0:
-				x = line.find('"')
-				y = line.rfind('"')
-
-
-
-		x = data.find('SRCREV')
-		s = data[x+5:]
-		x = s.find('"')
-		s = s[x+1:]
-		print s
-
-
-	
-	return [srcrev, srcurl, branch]
-
-
-
 def extractrevandurl(filename):
 	
 	branch = 'master'
+	linecontinue = False
+	completeuri = ''
+	tline = ''
+	srcurl = ''
+	srcrev = ''
 	
 	with open(filename, 'r') as f:
 		data = f.readlines()
 	
 		for line in data:
+
+			line = line.strip()
+
+			# Line continuation escapes are allow
+			# build the entire line before proceeding
+			if line.endswith('\\'):
+				tline = tline + line[:len(line)-1] + ';'
+				linecontinue = True
+				continue
+
+			if linecontinue == True:
+				linecontinue = False
+				tline = tline + line
+				line = tline
+				#print "completeline : ", line
+				tline = ''
+
+
 			if line.find('SRCREV') >= 0:
 				srcrev = line.split('=')[1].strip()
 				srcrev = srcrev.replace('"','')
@@ -99,6 +107,7 @@ def extractrevandurl(filename):
 			if line.find('SRC_URI') >= 0:
 				x = line.find('"')
 				y = line.rfind('"')
+
 
 				completeuri = line[x+1:y]
 				urigroups   = completeuri.split(';')
@@ -106,6 +115,8 @@ def extractrevandurl(filename):
 				for b in urigroups:
 					if 'git://github.com' in b:
 						srcurl = b
+						srcurl = srcurl.replace('.git','')
+						srcurl = srcurl.strip()
 					if 'branch' in b:
 						branch = b.split('=')[1]
 
@@ -124,6 +135,7 @@ def extractrevandurl(filename):
 				print "Found branch name " + var
 				break
 	
+	#print srcrev, srcurl, branch
 	return [srcrev, srcurl, branch]
 
 
@@ -152,7 +164,6 @@ def main():
 		srcrev , srcurl, branch = extractrevandurl(fn)
 
 		if srcurl == '' :
-			print 'ERROR: no plugin for ' + sys.argv[1]
 			continue
 		
 		if isgithub(srcurl) >= 0: 
@@ -169,7 +180,6 @@ def main():
 
 if __name__ == "__main__":
 	main()
-
 
 
 
