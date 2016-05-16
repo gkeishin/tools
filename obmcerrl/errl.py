@@ -108,11 +108,11 @@ def displayRecordsMenu(eldb):
 	
 	print
 	print '============================================================================'
-	print 'Log#\tSeverity\t\tDate\t\t\tMessage'
+	print '{0:4}  {1:22}  {2:22}  {3}'.format('Log#', 'Severity','Date','Message')
 
 	for i in eldb.db:
 		num = i.replace('/org/openbmc/records/events/','')
-		print '', num, '\t', eldb.db[i]['severity'], '\t', eldb.db[i]['time'], '\t', eldb.db[i]['message']
+		print '{0:4}  {1:22}  {2:22}  {3}'.format(num, eldb.db[i]['severity'],eldb.db[i]['time'],eldb.db[i]['message'])
 
 	print '--------------------------------------------------------'
 	s =   'Options: # (details),  a (All details), q (quit)  >> '
