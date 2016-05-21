@@ -11,7 +11,6 @@ import getopt
 import errlparser
 import obmcrequests
 
-
 loguri = '/org/openbmc/records/events/'
 
 #############################################
@@ -23,6 +22,7 @@ def hexdump(src, length=16, sep='.'):
 	lines = []
 	for c in xrange(0, len(src), length):
 		chars = src[c:c+length]
+
 		hex = ' '.join(["%02x" % x for x in chars])
 		if len(hex) > 24:
 			hex = "%s %s" % (hex[:24], hex[24:])
@@ -70,8 +70,12 @@ def displayRecordDetails(eldb, num):
 	print 'Severity:     ', eldb.db[uri]['severity']
 	print 'Reported By:  ', eldb.db[uri]['reported_by']
 	print 'Associations: '
-	for i in eldb.db[uri]['associations']:
-		print '              ', i[2]
+
+	try:
+		for i in eldb.db[uri]['associations']:
+			print '              ', i[2]
+	except:
+		pass
 
 	print
 	if errlparser.validLog(eldb.db[uri]['debug_data'][16:]) == True:
@@ -153,8 +157,7 @@ def usage():
 
 def main(argv):
 
-	global cache
-
+	cache  = ''
 	pswd 	= ''
 	ip 		= ''
 	uname 	= ''
@@ -187,7 +190,6 @@ def main(argv):
 		pswd = getpass.getpass('Password:')
 
 	runtool(ip, uname, pswd, cache)
-
 
 if __name__ == "__main__":
    main(sys.argv[1:])

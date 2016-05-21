@@ -28,7 +28,14 @@ class obmcConnection:
 		self.cookie = ''
 
 		if self.cache == '':
-			get_cookie()
+			self.get_cookie()
+
+	def __del__(self):
+		if self.cookie != '':
+			task = {"data": []}
+			url  = 'https://' + self.ip + '/logout'
+			r    = requests.post(url, json=task, verify=False)
+			self.cookie = ''
 
 	def get_cookie(self):
 		if self.cookie == '':
@@ -52,6 +59,7 @@ class obmcConnection:
 		else:
 			url = 'https://' + self.ip + uri
 			cookie = self.get_cookie()
+
 			r = requests.get(url, cookies=cookie, verify=False)
 			self.response = r.json()
 
