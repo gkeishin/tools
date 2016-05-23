@@ -8,6 +8,7 @@
 import requests
 import pickle
 import os
+import json
 
 
 ################################################################
@@ -61,6 +62,53 @@ class obmcConnection:
 			cookie = self.get_cookie()
 
 			r = requests.get(url, cookies=cookie, verify=False)
+			self.response = r.json()
+			print self.response
+
+			if self.cache != '':
+				pickle.dump( self.response, open( pf , "wb" ) )
+
+		return self.response['message']
+
+	def put(self, uri, parm):
+		# Example 9.x.x.x_org_openbmc_records_events_10.p
+		t  = self.ip + uri + '.p'
+		t  = t.replace('/','_')
+		pf = self.cache + '/' + t
+
+		if self.cache != '' and os.path.isfile(pf) == True:
+			self.response = pickle.load( open( pf, "rb" ) )
+		else:
+			url = 'https://' + self.ip + uri
+			cookie = self.get_cookie()
+
+			headers = {'content-Type' :'application/json'}
+			putdata = json.dumps({'data' : parm})
+			r = requests.put(url, cookies=cookie, data = putdata, headers=headers, verify=False)
+
+			self.response = r.json()
+
+			if self.cache != '':
+				pickle.dump( self.response, open( pf , "wb" ) )
+
+		return self.response['message']
+
+	def post(self, uri, parmlist):
+		# Example 9.x.x.x_org_openbmc_records_events_10.p
+		t  = self.ip + uri + '.p'
+		t  = t.replace('/','_')
+		pf = self.cache + '/' + t
+
+		if self.cache != '' and os.path.isfile(pf) == True:
+			self.response = pickle.load( open( pf, "rb" ) )
+		else:
+			url      = 'https://' + self.ip + uri
+			cookie   = self.get_cookie()
+			headers  = {'content-Type' :'application/json'}
+			postdata = json.dumps({'data' : parmlist})
+
+			r = requests.post(url, cookies=cookie, data = postdata, headers=headers, verify=False)
+
 			self.response = r.json()
 
 			if self.cache != '':
