@@ -20,3 +20,8 @@ Usage Examples
 	must follow the epapr (http://openpowerfoundation.org/?resource_lib=linux-on-power-architecture-platform-reference) and prints out interesting information.  The functions in
 	this file are used by errl.py
 
+
+	codeupdate.py -i x.x.x.x -u root -t bmc -f <file>
+	
+	This will copy a bmc fw imaage from your local server to the bmc.  Then it will 
+	force the code update while perserving the network parameters
