@@ -8,10 +8,26 @@
 import sys
 import getpass
 import getopt
-import errlparser
 import obmcrequests
 from paramiko import SSHClient
 from scp import SCPClient
+import time
+
+
+def chassis_power_off(e):
+
+	e.post('/org/openbmc/control/chassis0/action/getPowerState', [])
+	msg = e.data()
+
+	if msg == 1:
+		print 'Chassis powered on, will power off'
+		e.post('/org/openbmc/control/chassis0/action/powerOff', [])
+
+	while msg == 1:
+		time.sleep(2)
+		e.post('/org/openbmc/control/chassis0/action/getPowerState', [])
+		msg = e.data()
+		print 'Power State now: ', msg
 
 
 def scp_file(ip, uname, pswd, image):
@@ -21,13 +37,30 @@ def scp_file(ip, uname, pswd, image):
 	scp = SCPClient(ssh.get_transport())
 	scp.put(image, '/tmp/flashimg')
 
+def code_update_bios(ip, uname, pswd, image):
 
-def code_update_bmc(ip, uname, pswd, cache, image):
+	print 'Copying bios ' + image + ' to remote system'
+	scp_file(ip, uname, pswd, image)
+
+	print 'Establishing REST connection'
+
+	e  = obmcrequests.obmcConnection(ip, uname, pswd)
+
+	chassis_power_off(e)
+
+	e.post('/org/openbmc/control/flash/bios/action/update', ['/tmp/biosflashimg'])
+	e.get('/org/openbmc/control/flash/bios/attr/status')
+	msg = e.data()
+
+	print 'BMC indicates ' + msg
+
+
+def code_update_bmc(ip, uname, pswd, image):
 
 	print 'Copying ' + image + ' to remote system'
 	scp_file(ip, uname, pswd, image)
 
-	e  = obmcrequests.obmcConnection(ip, uname, pswd, cache)
+	e  = obmcrequests.obmcConnection(ip, uname, pswd)
 	e.put('/org/openbmc/control/flash/bmc/attr/preserve_network_settings', 1)
 	e.post('/org/openbmc/control/flash/bmc/action/update', ['/tmp/flashimg'])
 	e.get('/org/openbmc/control/flash/bmc/attr/status')
@@ -52,8 +85,6 @@ def usage():
 	print '\t-f | --file=      : image to be flashed'
 
 def main(argv):
-
-	cache = ''
 
 	pswd 	= ''
 	ip 		= ''
@@ -99,8 +130,16 @@ def main(argv):
 	if pswd == '':
 		pswd = getpass.getpass('Password:')
 
-	code_update_bmc(ip, uname, pswd, cache, image)
 
+	if target == 'bmc':
+		code_update_bmc(ip, uname, pswd, image)
+
+	elif target == 'bios':
+		code_update_bios(ip, uname, pswd, image)
+
+	else:
+		usage()
+		print 'Image target of ' + target + ' is not supported'
 
 if __name__ == "__main__":
    main(sys.argv[1:])
