@@ -63,7 +63,7 @@ class obmcConnection:
 
 			r = requests.get(url, cookies=cookie, verify=False)
 			self.response = r.json()
-			print self.response
+			#print self.response
 
 			if self.cache != '':
 				pickle.dump( self.response, open( pf , "wb" ) )
